@@ -1,6 +1,8 @@
 import { create } from 'zustand'
 
 export const useGarageStore = create((set) => ({
+  introVisible: true,
+  hideIntro: () => set({ introVisible: false }),
   currentGear: 0,
   gearContent: {
     1: {

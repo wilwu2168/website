@@ -1,6 +1,6 @@
 import { Canvas } from '@react-three/fiber'
 import { OrbitControls, PerspectiveCamera } from '@react-three/drei'
-import { Suspense, useRef, useEffect } from 'react'
+import { Suspense, useRef, useEffect, useState } from 'react'
 import { EffectComposer, Bloom } from '@react-three/postprocessing'
 import gsap from 'gsap'
 import { GarageScene } from './components/GarageScene'
@@ -67,7 +67,65 @@ function App() {
         </EffectComposer>
       </Canvas>
       
+      <IntroOverlay />
       <GearDisplay />
+    </div>
+  )
+}
+
+function IntroOverlay() {
+  const { introVisible } = useGarageStore()
+  const [opacity, setOpacity] = useState(0)
+  const [mounted, setMounted] = useState(true)
+
+  useEffect(() => {
+    const fadeInTimer = setTimeout(() => setOpacity(1), 2000)
+    return () => clearTimeout(fadeInTimer)
+  }, [])
+
+  useEffect(() => {
+    if (!introVisible) {
+      setOpacity(0)
+      const unmountTimer = setTimeout(() => setMounted(false), 800)
+      return () => clearTimeout(unmountTimer)
+    }
+  }, [introVisible])
+
+  if (!mounted) return null
+
+  return (
+    <div style={{
+      position: 'absolute',
+      top: '50%',
+      left: '50%',
+      transform: 'translate(-50%, -50%)',
+      textAlign: 'center',
+      color: 'white',
+      fontFamily: 'system-ui, -apple-system, sans-serif',
+      pointerEvents: 'none',
+      zIndex: 1000,
+      opacity,
+      transition: 'opacity 0.8s ease',
+      textShadow: '0 2px 10px rgba(0,0,0,0.5)',
+    }}>
+      <h1 style={{
+        margin: 0,
+        fontSize: '2.5rem',
+        fontWeight: 600,
+        letterSpacing: '0.02em',
+      }}>
+        Wilson Wu
+      </h1>
+      <p style={{
+        margin: '8px 0 0',
+        fontSize: '1.1rem',
+        fontWeight: 300,
+        letterSpacing: '0.15em',
+        opacity: 0.8,
+        textTransform: 'uppercase',
+      }}>
+        Software Engineer
+      </p>
     </div>
   )
 }

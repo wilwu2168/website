@@ -8,7 +8,7 @@ const BLACK = new THREE.Color('#111111')
 
 export function Car({ cameraRef }) {
   const [hovered, setHovered] = useState(false)
-  const { cycleGear } = useGarageStore()
+  const { cycleGear, hideIntro } = useGarageStore()
   const groupRef = useRef()
   const { scene } = useGLTF('/models/car.glb')
 
@@ -38,6 +38,7 @@ export function Car({ cameraRef }) {
   }, [scene])
 
   const handleCarClick = () => {
+    hideIntro()
     if (cameraRef.current) {
       gsap.to(cameraRef.current.position, {
         x: -3,
@@ -51,6 +52,7 @@ export function Car({ cameraRef }) {
 
   const handleGearShiftClick = (e) => {
     e.stopPropagation()
+    hideIntro()
     cycleGear()
   }
 
