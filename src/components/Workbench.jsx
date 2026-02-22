@@ -1,13 +1,19 @@
 import { useCursor } from '@react-three/drei'
 import { useState } from 'react'
 import gsap from 'gsap'
+import { useGarageStore } from '../store'
 
-export function Workbench({ cameraRef }) {
+export function Workbench({ cameraRef, controlsRef }) {
   const [hovered, setHovered] = useState(false)
+  const hideIntro = useGarageStore((s) => s.hideIntro)
+  const setWorkbenchActive = useGarageStore((s) => s.setWorkbenchActive)
   
   useCursor(hovered)
 
   const handleClick = () => {
+    hideIntro()
+    setWorkbenchActive(true)
+
     if (cameraRef.current) {
       gsap.to(cameraRef.current.position, {
         x: 6,
@@ -15,6 +21,17 @@ export function Workbench({ cameraRef }) {
         z: 6,
         duration: 1.5,
         ease: "power2.inOut"
+      })
+    }
+
+    if (controlsRef.current) {
+      gsap.to(controlsRef.current.target, {
+        x: 6,
+        y: 2.5,
+        z: 4,
+        duration: 1.5,
+        ease: "power2.inOut",
+        onUpdate: () => controlsRef.current.update()
       })
     }
   }

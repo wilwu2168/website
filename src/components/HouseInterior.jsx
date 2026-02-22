@@ -1,4 +1,6 @@
-export function HouseInterior() {
+import { memo } from 'react'
+
+export const HouseInterior = memo(function HouseInterior() {
   return (
     <group position={[0, 0, 12]}>
       {/* Floor */}
@@ -58,4 +60,4 @@ export function HouseInterior() {
       </mesh>
     </group>
   )
-}
+})
