@@ -1,6 +1,7 @@
 import { Canvas } from '@react-three/fiber'
 import { OrbitControls, PerspectiveCamera } from '@react-three/drei'
 import { Suspense, useRef, useEffect } from 'react'
+import { EffectComposer, Bloom } from '@react-three/postprocessing'
 import gsap from 'gsap'
 import { GarageScene } from './components/GarageScene'
 import { useGarageStore } from './store'
@@ -10,22 +11,19 @@ function App() {
   const controlsRef = useRef()
 
   useEffect(() => {
-    // Wait 1 second then trigger the cinematic entry sequence
     const timer = setTimeout(() => {
       if (cameraRef.current && controlsRef.current) {
-        // Animate camera from house [0, 2, 16] to garage entrance [0, 4, 8]
         gsap.to(cameraRef.current.position, {
           x: 0,
-          y: 4,
+          y: 3,
           z: 8,
           duration: 2.5,
           ease: "power2.inOut"
         })
         
-        // Set camera target to look straight into garage
         gsap.to(controlsRef.current.target, {
           x: 0,
-          y: 4,
+          y: 3,
           z: -8,
           duration: 2.5,
           ease: "power2.inOut",
@@ -39,7 +37,7 @@ function App() {
 
   return (
     <div style={{ width: '100vw', height: '100vh' }}>
-      <Canvas shadows>
+      <Canvas shadows gl={{ antialias: true, toneMapping: 3 }}>
         <PerspectiveCamera
           ref={cameraRef}
           makeDefault
@@ -58,6 +56,15 @@ function App() {
           minDistance={2}
           maxDistance={20}
         />
+
+        <EffectComposer>
+          <Bloom
+            luminanceThreshold={0.9}
+            luminanceSmoothing={0.3}
+            intensity={0.2}
+            mipmapBlur
+          />
+        </EffectComposer>
       </Canvas>
       
       <GearDisplay />

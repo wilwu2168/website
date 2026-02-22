@@ -1,16 +1,16 @@
 import { useRef, useEffect } from 'react'
-import { useFrame } from '@react-three/fiber'
+import { Environment } from '@react-three/drei'
 import gsap from 'gsap'
 import { HouseInterior } from './HouseInterior'
-import { GarageBackDoor } from './SlidingGarageDoor' 
+import { GarageBackDoor } from './SlidingGarageDoor'
 import { GarageEnvironment } from './GarageEnvironment'
+import { Car } from './Car'
+import { WallAccessories } from './WallAccessories'
 
 export function GarageScene({ cameraRef }) {
   const regularDoorRef = useRef()
-  const lightRef = useRef()
 
   useEffect(() => {
-    // Animate regular door open after 1 second
     const timer = setTimeout(() => {
       if (regularDoorRef.current) {
         gsap.to(regularDoorRef.current.rotation, {
@@ -24,39 +24,51 @@ export function GarageScene({ cameraRef }) {
     return () => clearTimeout(timer)
   }, [])
 
-  // Animate the ceiling light
-  useFrame((state) => {
-    if (lightRef.current) {
-      lightRef.current.intensity = 0.8 + Math.sin(state.clock.elapsedTime * 2) * 0.1
-    }
-  })
-
   return (
     <>
-      {/* Lighting */}
-      <ambientLight intensity={0.2} />
-      <directionalLight position={[10, 10, 5]} intensity={0.5} castShadow />
-      
-      {/* Garage ceiling light */}
-      <pointLight
-        ref={lightRef}
-        position={[0, 8, 0]}
-        intensity={0.8}
-        distance={20}
-        decay={2}
-        color="#fff8dc"
+      <Environment preset="city" />
+
+      <ambientLight intensity={0.4} />
+
+      <directionalLight
+        position={[5, 12, 4]}
+        intensity={0.7}
         castShadow
+        shadow-mapSize-width={1024}
+        shadow-mapSize-height={1024}
+        shadow-camera-far={25}
+        shadow-camera-left={-10}
+        shadow-camera-right={10}
+        shadow-camera-top={10}
+        shadow-camera-bottom={-10}
       />
-      
-      {/* House Interior (behind camera initially) */}
+
+      {/* Ceiling spotlights -- no shadow casting, just light fill */}
+      {[[-6, -5], [0, 0], [6, 5]].map(([x, z], i) => (
+        <spotLight
+          key={i}
+          position={[x, 7.9, z]}
+          angle={Math.PI / 3}
+          penumbra={0.8}
+          intensity={0.6}
+          distance={12}
+          decay={1.5}
+          color="#fffef0"
+        />
+      ))}
+
+      {/* Natural light from back glass wall */}
+      <directionalLight
+        position={[0, 6, -10]}
+        intensity={0.35}
+        color="#e8f0e8"
+      />
+
       <HouseInterior />
-      
-      {/* Front regular door */}
       <GarageBackDoor ref={regularDoorRef} />
-      
-      
-      {/* Garage Environment */}
       <GarageEnvironment />
+      <Car cameraRef={cameraRef} />
+      <WallAccessories />
     </>
   )
 }
