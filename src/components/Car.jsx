@@ -3,31 +3,28 @@ import { useState, useRef, useMemo, useCallback, useEffect } from 'react'
 import * as THREE from 'three'
 import { useFrame } from '@react-three/fiber'
 import gsap from 'gsap'
-import { useGarageStore } from '../store'
+import { useGarageStore, GARAGE_OUT_OF_SERVICE } from '../store'
 
 const BLACK = new THREE.Color('#111111')
 
-const STOP_Z = [null, -40, -90, -140, -190, -240]
+const STOP_Z = [null, -40, -90, -140, -240]
 
 const CAM_OFFSET = { x: -0.5, y: 2.84, z: 0.2 }
 const TARGET_OFFSET = { x: -0.2, y: 2.19, z: -2.0 }
 
 export function Car({ cameraRef, controlsRef }) {
   const [hovered, setHovered] = useState(false)
-  const cycleGear = useGarageStore((s) => s.cycleGear)
-  const hideIntro = useGarageStore((s) => s.hideIntro)
-  const setWorkbenchActive = useGarageStore((s) => s.setWorkbenchActive)
-  const setInsideCar = useGarageStore((s) => s.setInsideCar)
-  const setEnteringCar = useGarageStore((s) => s.setEnteringCar)
-  const insideCar = useGarageStore((s) => s.insideCar)
   const isDriving = useGarageStore((s) => s.isDriving)
+  const insideCar = useGarageStore((s) => s.insideCar)
+  const hideIntro = useGarageStore((s) => s.hideIntro)
+  const setInsideCar = useGarageStore((s) => s.setInsideCar)
   const setIsDriving = useGarageStore((s) => s.setIsDriving)
   const groupRef = useRef()
+
+  useCursor(hovered && !insideCar && !GARAGE_OUT_OF_SERVICE)
   const drivingTween = useRef(null)
   const isAnimating = useRef(false)
   const { scene } = useGLTF('/models/car.glb')
-
-  useCursor(hovered)
 
   const clonedScene = useMemo(() => {
     const clone = scene.clone(true)
@@ -51,90 +48,6 @@ export function Car({ cameraRef, controlsRef }) {
     })
     return clone
   }, [scene])
-
-  const handleCarClick = useCallback(() => {
-    if (insideCar) return
-    setEnteringCar(true)
-    hideIntro()
-    setWorkbenchActive(false)
-
-    const cam = cameraRef.current
-    const ctrl = controlsRef?.current
-    if (!cam) return
-
-    if (ctrl) ctrl.enabled = false
-
-    const approachCam = { x: -5.5, y: 2.85, z: -1.25 }
-    const finalCam = { x: -5.5, y: 2.85, z: -1.3 }
-    const approachTarget = { x: -5.2, y: 1.65, z: -3.5 }
-    const finalTarget = { x: -5.2, y: 1.65, z: -3.5 }
-    const fallbackLookAt = { ...approachTarget }
-
-    const tl = gsap.timeline({
-      onComplete: () => {
-        setEnteringCar(false)
-        setInsideCar(true)
-        if (ctrl) {
-          ctrl.target.set(finalTarget.x, finalTarget.y, finalTarget.z)
-          ctrl.enabled = true
-          ctrl.update()
-        }
-      }
-    })
-
-    tl.to(cam.position, {
-      ...approachCam,
-      duration: 0.9,
-      ease: "power2.inOut"
-    }, 0)
-    if (ctrl) {
-      tl.to(ctrl.target, {
-        ...approachTarget,
-        duration: 0.9,
-        ease: "power2.inOut",
-        onUpdate: () => {
-          ctrl.update()
-        }
-      }, 0)
-
-      tl.to(cam.position, {
-        ...finalCam,
-        duration: 0.5,
-        ease: "power2.inOut"
-      })
-
-      tl.to(ctrl.target, {
-        ...finalTarget,
-        duration: 0.5,
-        ease: "power2.inOut",
-        onUpdate: () => {
-          ctrl.update()
-        }
-      }, "<")
-    } else {
-      tl.to(fallbackLookAt, {
-        ...approachTarget,
-        duration: 0.9,
-        ease: "power2.inOut"
-      }, 0)
-
-      tl.to(cam.position, {
-        ...finalCam,
-        duration: 0.5,
-        ease: "power2.inOut"
-      })
-
-      tl.to(fallbackLookAt, {
-        ...finalTarget,
-        duration: 0.5,
-        ease: "power2.inOut"
-      }, "<")
-
-      tl.eventCallback('onUpdate', () => {
-        cam.lookAt(fallbackLookAt.x, fallbackLookAt.y, fallbackLookAt.z)
-      })
-    }
-  }, [insideCar, hideIntro, setWorkbenchActive, setInsideCar, setEnteringCar, cameraRef, controlsRef])
 
   useFrame(() => {
     if (!isAnimating.current || !groupRef.current) return
@@ -199,15 +112,43 @@ export function Car({ cameraRef, controlsRef }) {
     }, 0)
   }, [cameraRef, controlsRef])
 
+  const startDriving = useCallback(() => {
+    if (!groupRef.current) return
+    const cam = cameraRef.current
+    const ctrl = controlsRef?.current
+    if (ctrl) ctrl.enabled = false
+
+    // Snap camera to car position immediately
+    const carPos = groupRef.current.position
+    if (cam) {
+      cam.position.set(
+        carPos.x + CAM_OFFSET.x,
+        carPos.y + CAM_OFFSET.y,
+        carPos.z + CAM_OFFSET.z
+      )
+    }
+    if (ctrl) {
+      ctrl.target.set(
+        carPos.x + TARGET_OFFSET.x,
+        carPos.y + TARGET_OFFSET.y,
+        carPos.z + TARGET_OFFSET.z
+      )
+      ctrl.update()
+    }
+
+    // Drive to first gear stop
+    animateToStop(1)
+  }, [cameraRef, controlsRef, animateToStop])
+
   useEffect(() => {
     useGarageStore.getState()._setDriveToGear(animateToStop)
     return () => useGarageStore.getState()._setDriveToGear(null)
   }, [animateToStop])
 
   useEffect(() => {
-    useGarageStore.getState()._setEnterCar(handleCarClick)
-    return () => useGarageStore.getState()._setEnterCar(null)
-  }, [handleCarClick])
+    useGarageStore.getState()._setStartDriving(startDriving)
+    return () => useGarageStore.getState()._setStartDriving(null)
+  }, [startDriving])
 
   useEffect(() => {
     if (!isDriving) {
@@ -222,29 +163,15 @@ export function Car({ cameraRef, controlsRef }) {
     }
   }, [isDriving])
 
-  const handleGearShiftClick = (e) => {
-    e.stopPropagation()
-    if (!insideCar) return
+  const handleCarClick = useCallback(() => {
+    if (GARAGE_OUT_OF_SERVICE) return
+    if (insideCar) return
     hideIntro()
-
-    const currentGearVal = useGarageStore.getState().currentGear
-
-    if (isDriving && currentGearVal >= 5) {
-      useGarageStore.getState()._exitCar?.()
-      return
-    }
-
-    const nextGear = currentGearVal >= 5 ? 1 : currentGearVal + 1
-    cycleGear()
-
-    if (!isDriving && nextGear === 1) {
-      setIsDriving(true)
-    }
-
-    if (isDriving || nextGear === 1) {
-      animateToStop(nextGear)
-    }
-  }
+    setInsideCar(true)
+    setIsDriving(true)
+    useGarageStore.setState({ currentGear: 1 })
+    startDriving()
+  }, [insideCar, hideIntro, setInsideCar, setIsDriving, startDriving])
 
   return (
     <group
@@ -256,16 +183,6 @@ export function Car({ cameraRef, controlsRef }) {
       onPointerLeave={() => setHovered(false)}
     >
       <primitive object={clonedScene} scale={0.6} />
-
-      <group
-        position={[0, 1.5, 0]}
-        onClick={handleGearShiftClick}
-      >
-        <mesh visible={false}>
-          <boxGeometry args={[2, 1, 4]} />
-          <meshBasicMaterial transparent opacity={0} />
-        </mesh>
-      </group>
     </group>
   )
 }

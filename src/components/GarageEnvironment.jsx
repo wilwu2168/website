@@ -2,7 +2,7 @@ import { useMemo, useState, useRef, useEffect, useLayoutEffect, useCallback, mem
 import * as THREE from 'three'
 import { MeshReflectorMaterial, useCursor } from '@react-three/drei'
 import gsap from 'gsap'
-import { useGarageStore } from '../store'
+import { useGarageStore, GARAGE_OUT_OF_SERVICE } from '../store'
 
 const METAL_DARK = new THREE.MeshStandardMaterial({ color: '#333', roughness: 0.3, metalness: 0.7 })
 const METAL_LIGHT = new THREE.MeshStandardMaterial({ color: '#aaa', roughness: 0.15, metalness: 0.9 })
@@ -146,9 +146,10 @@ function ToolWall({ cameraRef, controlsRef }) {
   const hideIntro = useGarageStore((s) => s.hideIntro)
   const setWorkbenchActive = useGarageStore((s) => s.setWorkbenchActive)
 
-  useCursor(hovered)
+  useCursor(hovered && !GARAGE_OUT_OF_SERVICE)
 
   const handleClick = useCallback(() => {
+    if (GARAGE_OUT_OF_SERVICE) return
     hideIntro()
     setWorkbenchActive(true)
     const cam = cameraRef.current

@@ -10,7 +10,7 @@ const ROAD_LENGTH = 280
 const ROAD_START_Z = -10
 const ROAD_END_Z = ROAD_START_Z - ROAD_LENGTH
 
-const STOP_Z = [-40, -90, -140, -190, -240]
+const STOP_Z = [-40, -90, -140, -240]
 
 const BILLBOARD_X = ROAD_X - 3
 const BILLBOARD_Y = 3
@@ -167,7 +167,7 @@ const ParkStop = memo(function ParkStop() {
       <Billboard
         position={[BILLBOARD_X, BILLBOARD_Y, z - 14]}
         title={section.title}
-        lines={[section.tagline, '', section.bio]}
+        lines={[section.tagline, '', section.bioShort ?? section.bio]}
       />
     </group>
   )
@@ -392,90 +392,12 @@ function FloatingShape({ position, geometry, color, size }) {
   )
 }
 
-// --- Stop 4: Workshop (Skills) ---
-
-const WorkshopStop = memo(function WorkshopStop() {
-  const portfolioSections = useGarageStore((s) => s.portfolioSections)
-  const section = portfolioSections[3]
-  const z = STOP_Z[3]
-
-  const lines = section.categories.map(
-    (cat) => `${cat.label}: ${cat.items.join(', ')}`
-  )
-
-  return (
-    <group>
-      <mesh position={[ROAD_X, 0.005, z]} rotation={[-Math.PI / 2, 0, 0]}>
-        <planeGeometry args={[30, 30]} />
-        <meshStandardMaterial color="#706860" roughness={0.8} />
-      </mesh>
-
-      {[
-        [ROAD_X - 6, z - 2],
-        [ROAD_X + 7, z + 3],
-      ].map(([x, sz], i) => (
-        <group key={i} position={[x, 0, sz]}>
-          <mesh position={[0, 1.4, 0]}>
-            <boxGeometry args={[3, 0.12, 1.2]} />
-            <meshStandardMaterial color="#c8a06e" roughness={0.5} />
-          </mesh>
-          {[-1.2, 1.2].map((lx, j) => (
-            <mesh key={j} position={[lx, 0.7, 0]}>
-              <boxGeometry args={[0.12, 1.4, 0.12]} />
-              <meshStandardMaterial color="#555" metalness={0.6} roughness={0.3} />
-            </mesh>
-          ))}
-          {[-0.5, 0, 0.5].map((lx, j) => (
-            <mesh key={`tool-${j}`} position={[lx, 1.6, 0]}>
-              <cylinderGeometry args={[0.05, 0.05, 0.3, 6]} />
-              <meshStandardMaterial color={['#cc2222', '#ddbb00', '#2255cc'][j]} roughness={0.5} />
-            </mesh>
-          ))}
-        </group>
-      ))}
-
-      {[ROAD_X - 8, ROAD_X + 6].map((x, i) => (
-        <group key={i} position={[x, 0, z + (i === 0 ? 5 : -5)]}>
-          <mesh position={[0, 1.5, 0]} rotation={[Math.PI / 2, 0, 0]}>
-            <torusGeometry args={[1.5, 0.12, 8, 24]} />
-            <meshStandardMaterial color="#888" metalness={0.8} roughness={0.2} />
-          </mesh>
-          <mesh position={[0, 1.5, 0]} rotation={[Math.PI / 2, 0, Math.PI / 6]}>
-            <torusGeometry args={[1.2, 0.1, 8, 24]} />
-            <meshStandardMaterial color="#666" metalness={0.8} roughness={0.2} />
-          </mesh>
-        </group>
-      ))}
-
-      <group position={[ROAD_X - 5, 0, z + 2]}>
-        <mesh position={[0, 0.4, 0]}>
-          <boxGeometry args={[1.2, 0.8, 0.8]} />
-          <meshStandardMaterial color="#cc2222" roughness={0.4} metalness={0.3} />
-        </mesh>
-        <mesh position={[0, 0.82, 0]}>
-          <boxGeometry args={[1.22, 0.04, 0.82]} />
-          <meshStandardMaterial color="#aa1111" roughness={0.3} metalness={0.4} />
-        </mesh>
-      </group>
-
-      <pointLight position={[ROAD_X, 5, z]} intensity={0.7} color="#ffe0b0" distance={25} decay={1.5} />
-
-      <Billboard
-        position={[BILLBOARD_X, BILLBOARD_Y, z - 14]}
-        title={section.title}
-        lines={lines}
-        color="#ffa500"
-      />
-    </group>
-  )
-})
-
-// --- Stop 5: Scenic Overlook (Contact) ---
+// --- Stop 4: Scenic Overlook (Contact) ---
 
 const OverlookStop = memo(function OverlookStop() {
   const portfolioSections = useGarageStore((s) => s.portfolioSections)
-  const section = portfolioSections[4]
-  const z = STOP_Z[4]
+  const section = portfolioSections.find((s) => s.type === 'contact') || portfolioSections[3]
+  const z = STOP_Z[3]
 
   const mountainPoints = useMemo(() => {
     const peaks = [
@@ -529,11 +451,13 @@ const OverlookStop = memo(function OverlookStop() {
         position={[BILLBOARD_X, BILLBOARD_Y, z - 14]}
         title={section.title}
         lines={[
-          section.note,
+          section.name || '',
+          section.role || '',
           '',
-          `Email: ${section.email}`,
+          section.ctaMessage || '',
+          `Email: ${section.emailDisplay || section.email}`,
           `LinkedIn: ${section.linkedin}`,
-          `Location: ${section.location}`,
+          section.location || '',
         ]}
         color="#ff8844"
       />
@@ -754,7 +678,6 @@ export function RoadEnvironment() {
       <ParkStop />
       <CityStop />
       <LabStop />
-      <WorkshopStop />
       <OverlookStop />
     </group>
   )

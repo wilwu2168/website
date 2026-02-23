@@ -7,7 +7,7 @@ import gsap from 'gsap'
 import { GarageScene } from './components/GarageScene'
 import { PortfolioPage } from './components/PortfolioPage'
 import { NavBar } from './components/NavBar'
-import { useGarageStore } from './store'
+import { useGarageStore, GARAGE_OUT_OF_SERVICE } from './store'
 
 function hasWebGLSupport() {
   try {
@@ -81,16 +81,16 @@ function WebGLFallback() {
 function App() {
   const cameraRef = useRef()
   const controlsRef = useRef()
+  const isExitingCarRef = useRef(false)
   const insideCar = useGarageStore((s) => s.insideCar)
   const setInsideCar = useGarageStore((s) => s.setInsideCar)
   const setWorkbenchActive = useGarageStore((s) => s.setWorkbenchActive)
   const workbenchActive = useGarageStore((s) => s.workbenchActive)
   const showIntro = useGarageStore((s) => s.showIntro)
+  const hideIntro = useGarageStore((s) => s.hideIntro)
   const setIsDriving = useGarageStore((s) => s.setIsDriving)
   const viewMode = useGarageStore((s) => s.viewMode)
   const setViewMode = useGarageStore((s) => s.setViewMode)
-  const insideCarForEffect = useGarageStore((s) => s.insideCar)
-  const enteringCar = useGarageStore((s) => s.enteringCar)
 
   useEffect(() => {
     if (window.location.hash === '#portfolio') {
@@ -101,9 +101,11 @@ function App() {
   }, [setViewMode])
 
   const exitCar = useCallback(() => {
+    isExitingCarRef.current = true
     setInsideCar(false)
     setIsDriving(false)
     useGarageStore.setState({ currentGear: 0 })
+    useGarageStore.getState().showIntroFromDrive()
     const cam = cameraRef.current
     const ctrl = controlsRef.current
     if (!cam) return
@@ -113,24 +115,24 @@ function App() {
     const tl = gsap.timeline({
       onComplete: () => {
         if (ctrl) ctrl.enabled = true
-        showIntro()
+        isExitingCarRef.current = false
       }
     })
 
     tl.to(cam.position, {
       x: 0, y: 3, z: 8,
-      duration: 2,
+      duration: 1,
       ease: "power2.inOut"
     }, 0)
     if (ctrl) {
       tl.to(ctrl.target, {
         x: 0, y: 3, z: -8,
-        duration: 2,
+        duration: 1,
         ease: "power2.inOut",
         onUpdate: () => ctrl.update()
       }, 0)
     }
-  }, [setInsideCar, setIsDriving, showIntro])
+  }, [setInsideCar, setIsDriving])
 
   useEffect(() => {
     useGarageStore.getState()._setExitCar(exitCar)
@@ -154,8 +156,8 @@ function App() {
 
   useEffect(() => {
     if (viewMode !== 'intro' && viewMode !== '3d') return
-    // Don’t reset camera when user is in the car or in the middle of entering it
-    if (insideCarForEffect || enteringCar) return
+    if (insideCar) return
+    if (isExitingCarRef.current) return
 
     const delay = viewMode === '3d' ? 300 : 1000
     const timer = setTimeout(() => {
@@ -190,7 +192,7 @@ function App() {
     }, delay)
 
     return () => clearTimeout(timer)
-  }, [viewMode, insideCarForEffect, enteringCar])
+  }, [viewMode, insideCar])
 
   if (viewMode === 'portfolio') {
     return (
@@ -259,8 +261,17 @@ function App() {
       </Canvas>
       {viewMode === 'intro' && <IntroOverlay />}
       {viewMode === '3d' && <NavBar />}
-      {viewMode === '3d' && !insideCar && !workbenchActive && (
-        <ActionButtons onWorkbench={() => useGarageStore.getState()._goToWorkbench?.()} onEnterCar={() => useGarageStore.getState()._enterCar?.()} />
+      {viewMode === '3d' && !insideCar && !workbenchActive && !GARAGE_OUT_OF_SERVICE && (
+        <ActionButtons
+          onWorkbench={() => useGarageStore.getState()._goToWorkbench?.()}
+          onEnterCar={() => {
+            hideIntro()
+            setInsideCar(true)
+            setIsDriving(true)
+            useGarageStore.setState({ currentGear: 1 })
+            useGarageStore.getState()._startDriving?.()
+          }}
+        />
       )}
       <GearDisplay />
       <WorkbenchOverlay />
@@ -331,7 +342,7 @@ function ActionButtons({ onWorkbench, onEnterCar }) {
         }}
       >
         <span style={{ fontSize: '1rem' }} aria-hidden>🚗</span>
-        <span>Get in car</span>
+        <span>Start driving</span>
       </button>
     </div>
   )
@@ -341,11 +352,16 @@ function IntroOverlay() {
   const introVisible = useGarageStore((s) => s.introVisible)
   const hideIntro = useGarageStore((s) => s.hideIntro)
   const setViewMode = useGarageStore((s) => s.setViewMode)
+  const returnFromDrive = useGarageStore((s) => s.returnFromDrive)
   const [opacity, setOpacity] = useState(0)
   const [mounted, setMounted] = useState(true)
 
   useEffect(() => {
-    const fadeInTimer = setTimeout(() => setOpacity(1), 2000)
+    const delay = returnFromDrive ? 200 : 2000
+    const fadeInTimer = setTimeout(() => setOpacity(1), delay)
+    if (returnFromDrive) {
+      useGarageStore.setState({ returnFromDrive: false })
+    }
     return () => clearTimeout(fadeInTimer)
   }, [])
 
@@ -447,7 +463,7 @@ function GearDisplay() {
   const ordinal = currentGear === 1 ? 'st' : currentGear === 2 ? 'nd' : currentGear === 3 ? 'rd' : 'th'
   
   if (isDriving) {
-    const isLastGear = currentGear >= 5
+    const isLastGear = currentGear >= 4
     return (
       <button
         onClick={() => {
@@ -571,29 +587,40 @@ function WorkbenchOverlay() {
             <p style={{ margin: '0 0 10px', color: 'rgba(255,255,255,0.82)', fontSize: '0.88rem', lineHeight: '1.7' }}>
               {section.bio}
             </p>
-            <p style={{ margin: 0, color: 'rgba(255,255,255,0.55)', fontSize: '0.84rem', lineHeight: '1.6', fontStyle: 'italic' }}>
-              {section.interests}
-            </p>
+            {section.interests && (
+              <p style={{ margin: 0, color: 'rgba(255,255,255,0.55)', fontSize: '0.84rem', lineHeight: '1.6', fontStyle: 'italic' }}>
+                {section.interests}
+              </p>
+            )}
           </div>
         )
 
       case 'experience':
+        const education = section.education || []
+        const jobs = section.items || []
         return (
           <div key={section.id} style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
-            {section.items.map((job, i) => (
+            {education.map((e, i) => (
+              <div key={`edu-${i}`} style={{ padding: '14px 16px', background: 'rgba(255,255,255,0.03)', borderRadius: '8px', borderLeft: '3px solid #ffa500' }}>
+                <div style={{ color: '#ffa500', fontSize: '0.82rem', fontWeight: 600, marginBottom: '4px' }}>{e.school}</div>
+                <div style={{ color: 'rgba(255,255,255,0.4)', fontSize: '0.76rem', marginBottom: '4px' }}>{e.dates}</div>
+                <div style={{ color: '#fff', fontSize: '0.9rem', fontWeight: 500 }}>{e.degree}</div>
+              </div>
+            ))}
+            {jobs.map((job, i) => (
               <div key={i} style={{ padding: '14px 16px', background: 'rgba(255,255,255,0.03)', borderRadius: '8px', borderLeft: '3px solid #ffa500' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', flexWrap: 'wrap', gap: '4px', marginBottom: '4px' }}>
                   <span style={{ color: '#fff', fontSize: '0.92rem', fontWeight: 600 }}>{job.role}</span>
                   <span style={{ color: 'rgba(255,255,255,0.4)', fontSize: '0.76rem' }}>{job.dates}</span>
                 </div>
-                <div style={{ color: '#ffa500', fontSize: '0.82rem', fontWeight: 500, marginBottom: '8px' }}>
+                <div style={{ color: '#ffa500', fontSize: '0.82rem', fontWeight: 500, marginBottom: job.articleUrl ? '8px' : 0 }}>
                   {job.company} <span style={{ color: 'rgba(255,255,255,0.35)', fontWeight: 400 }}>&middot; {job.location}</span>
                 </div>
-                <ul style={{ margin: 0, paddingLeft: '16px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                  {job.bullets.map((b, j) => (
-                    <li key={j} style={{ color: 'rgba(255,255,255,0.72)', fontSize: '0.82rem', lineHeight: '1.55' }}>{b}</li>
-                  ))}
-                </ul>
+                {job.articleUrl && (
+                  <a href={job.articleUrl} target="_blank" rel="noopener noreferrer" style={{ color: '#ffa500', fontSize: '0.8rem', fontWeight: 500, textDecoration: 'none' }}>
+                    {job.articleTitle || 'Featured Article – Award-Winning'}
+                  </a>
+                )}
               </div>
             ))}
           </div>
@@ -616,19 +643,23 @@ function WorkbenchOverlay() {
           </div>
         )
 
-      case 'skills':
+      case 'funfacts':
         return (
-          <div key={section.id} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-            {section.categories.map((cat) => (
-              <div key={cat.label}>
-                <div style={{ color: 'rgba(255,255,255,0.5)', fontSize: '0.72rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '6px' }}>
-                  {cat.label}
-                </div>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '5px' }}>
-                  {cat.items.map((s) => (
-                    <span key={s} style={pill}>{s}</span>
-                  ))}
-                </div>
+          <div key={section.id} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            {(section.facts || []).map((fact, i) => (
+              <div key={i} style={{ padding: '12px 14px', background: 'rgba(255,255,255,0.03)', borderRadius: '8px', borderLeft: '3px solid #ffa500' }}>
+                <div style={{ color: '#ffa500', fontSize: '0.84rem', fontWeight: 600, marginBottom: '4px' }}>{fact.title}</div>
+                <p style={{ margin: 0, color: 'rgba(255,255,255,0.82)', fontSize: '0.82rem', lineHeight: '1.55' }}>{fact.text}</p>
+                {fact.articleUrl && (fact.articleImage || fact.articleTitle) && (
+                  <a href={fact.articleUrl} target="_blank" rel="noopener noreferrer" style={{ display: 'block', marginTop: '10px', textDecoration: 'none' }}>
+                    {fact.articleImage && (
+                      <img src={fact.articleImage} alt={fact.articleTitle || ''} style={{ width: '100%', maxHeight: '100px', objectFit: 'cover', borderRadius: '6px' }} onError={(e) => { e.target.style.display = 'none' }} />
+                    )}
+                    {fact.articleTitle && (
+                      <div style={{ color: '#ffa500', fontSize: '0.82rem', fontWeight: 600, marginTop: '6px' }}>{fact.articleTitle}</div>
+                    )}
+                  </a>
+                )}
               </div>
             ))}
           </div>
@@ -637,21 +668,26 @@ function WorkbenchOverlay() {
       case 'contact':
         return (
           <div key={section.id} style={{ textAlign: 'center', padding: '8px 0' }}>
-            <p style={{ margin: '0 0 16px', color: 'rgba(255,255,255,0.7)', fontSize: '0.88rem', lineHeight: '1.6' }}>
-              {section.note}
+            <div style={{ color: '#fff', fontSize: '1rem', fontWeight: 600, marginBottom: '4px' }}>{section.name}</div>
+            <div style={{ color: '#ffa500', fontSize: '0.82rem', marginBottom: '8px' }}>{section.role}</div>
+            <p style={{ margin: '0 0 12px', color: 'rgba(255,255,255,0.82)', fontSize: '0.84rem', lineHeight: '1.5' }}>
+              {section.description}
             </p>
-            <div style={{ display: 'flex', justifyContent: 'center', gap: '24px', flexWrap: 'wrap' }}>
-              <a href={`mailto:${section.email}`} style={{ color: '#ffa500', textDecoration: 'none', fontSize: '0.88rem', fontWeight: 500, transition: 'opacity 0.2s' }}
+            <div style={{ color: 'rgba(255,255,255,0.5)', fontSize: '0.8rem', marginBottom: '12px' }}>
+              {section.location}
+            </div>
+            <p style={{ margin: '0 0 12px', color: 'rgba(255,255,255,0.7)', fontSize: '0.84rem' }}>
+              {section.ctaMessage}
+            </p>
+            <div style={{ display: 'flex', justifyContent: 'center', gap: '16px', flexWrap: 'wrap' }}>
+              <a href={`mailto:${section.email}`} style={{ color: '#ffa500', textDecoration: 'none', fontSize: '0.84rem', fontWeight: 500, transition: 'opacity 0.2s' }}
                 onMouseEnter={(e) => { e.target.style.opacity = '0.7' }}
                 onMouseLeave={(e) => { e.target.style.opacity = '1' }}
-              >{section.email}</a>
-              <a href={`https://${section.linkedin}`} target="_blank" rel="noopener noreferrer" style={{ color: '#ffa500', textDecoration: 'none', fontSize: '0.88rem', fontWeight: 500, transition: 'opacity 0.2s' }}
+              >{section.emailDisplay || section.email}</a>
+              <a href={`https://${section.linkedin}`} target="_blank" rel="noopener noreferrer" style={{ color: '#ffa500', textDecoration: 'none', fontSize: '0.84rem', fontWeight: 500, transition: 'opacity 0.2s' }}
                 onMouseEnter={(e) => { e.target.style.opacity = '0.7' }}
                 onMouseLeave={(e) => { e.target.style.opacity = '1' }}
               >LinkedIn</a>
-            </div>
-            <div style={{ color: 'rgba(255,255,255,0.4)', fontSize: '0.8rem', marginTop: '10px' }}>
-              {section.location}
             </div>
           </div>
         )

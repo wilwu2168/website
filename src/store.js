@@ -1,5 +1,7 @@
 import { create } from 'zustand'
 
+export const GARAGE_OUT_OF_SERVICE = false
+
 export const useGarageStore = create((set) => ({
   viewMode: 'intro', // 'intro' | '3d' | 'portfolio'
   setViewMode: (mode) => {
@@ -8,50 +10,68 @@ export const useGarageStore = create((set) => ({
   },
   introVisible: true,
   hideIntro: () => set({ introVisible: false, viewMode: '3d' }),
-  showIntro: () => set({ introVisible: true, viewMode: 'intro' }),
+  showIntro: () => set({ introVisible: true, viewMode: 'intro', returnFromDrive: false }),
+  showIntroFromDrive: () => set({ introVisible: true, viewMode: 'intro', returnFromDrive: true }),
+  returnFromDrive: false,
   currentGear: 0,
   gearContent: {
-    1: { title: "About Me", content: "UC Berkeley B.A. in Data Science & Applied Mathematics (2022\u20132026). Building at the intersection of machine learning, full-stack engineering, and mathematical modeling." },
+    1: { title: "About Me", content: "Builder from Oakland. UC Berkeley double major in Data Science & Applied Mathematics. Building impactful software at the intersection of ML, full-stack, and social impact." },
     2: { title: "Experience", content: "SWE Intern @ Hortus AI \u2014 Django, PostgreSQL, AWS, Celery/Redis \u2022 SWE Intern @ iTea \u2014 Next.js, AWS, Power BI dashboards" },
     3: { title: "Projects", content: "Audio & Genomic ML (CNN, DNABERT) \u2022 Ngordnet semantic word network (Java, 100k+ node graph)" },
-    4: { title: "Skills", content: "Python \u2022 Java \u2022 C++ \u2022 JavaScript/Next.js \u2022 SQL \u2022 AWS \u2022 Power BI \u2022 Tableau" },
-    5: { title: "Contact", content: "Oakland, CA \u2022 wilwu2168@berkeley.edu \u2022 linkedin.com/in/wilsunah" },
+    4: { title: "Contact", content: "Oakland, CA | UC Berkeley \u2022 wilsonwu022004@gmail.com \u2022 linkedin.com/in/wilsunah" },
   },
   portfolioSections: [
     {
       id: 'about',
       title: 'About Me',
       type: 'about',
-      tagline: "I like to build things that matter.",
-      bio: "I\u2019m a senior at UC Berkeley studying Data Science and Applied Mathematics. I love turning messy, real-world problems into clean engineering solutions\u2014whether that\u2019s optimizing supply chains with regression models, building async pipelines for AI marketplaces, or designing graph engines that query 100k nodes in milliseconds.",
-      interests: "When I\u2019m not coding, you\u2019ll find me tinkering with cars, exploring the Oakland food scene, or diving into a new math proof for fun.",
+      tagline: "Hi, I'm Wilson.",
+      bio: "Growing up in Oakland, the path into the tech world wasn't always clear or easy. However, I refused to let my circumstances define my potential. That determination led me to UC Berkeley, where I am currently completing a double major in Data Science and Applied Mathematics.\n\nMy fascination with software development began in 2020 when I joined the Oakland Promise Safeway Tech Immersion Program. It was there that I first saw how engineers use code as a tool for social impact. Coming from a low-income background, I realized early on that the only way to create change is to be the one to take that first step.\n\nFast forward to today: I've spent my time at university and beyond mastering everything from Machine Learning algorithms to the collaborative power of Git. I feel incredibly privileged to have studied at such a high level and to have worked alongside some of the brightest minds in the field. Now, I'm ready to apply that knowledge to build the next generation of impactful software.",
+      bioShort: "From Oakland to UC Berkeley. Building at the intersection of ML, full-stack engineering, and social impact.",
+      interests: "",
     },
     {
       id: 'experience',
       title: 'Experience',
       type: 'experience',
+      education: [
+        {
+          school: 'UC Berkeley',
+          degree: 'B.A. Data Science & Applied Mathematics',
+          dates: '2022 – 2026',
+          details: ['Double major', 'Expected graduation 2026'],
+        },
+      ],
       items: [
+        {
+          role: 'Mechanic / Automotive',
+          company: 'Mechanic Shop',
+          location: 'Oakland, CA',
+          dates: 'Aug 2020 – Aug 2022',
+          bullets: [],
+          articleUrl: 'https://www.speedhunters.com/2023/02/is-it-a-show-car-is-it-a-race-car-this-m2-is-both-more/',
+          articleTitle: 'Featured Article – Award-Winning Work at Car Shows',
+        },
+        {
+          role: 'Software Engineering Intern',
+          company: 'Safeway Tech Immersion Program',
+          location: 'Oakland, CA',
+          dates: 'Jul 2021 – Aug 2021',
+          bullets: [],
+        },
         {
           role: 'Software Engineering Intern',
           company: 'Hortus AI',
           location: 'Oakland, CA',
           dates: 'Dec 2025 \u2013 Feb 2026',
-          bullets: [
-            'Built full-stack features for an AI-services marketplace using Django and PostgreSQL',
-            'Engineered async upload pipeline with AWS S3 + MongoDB, decoupling file ingestion from app lifecycle',
-            'Architected Celery/Redis distributed task queue\u2014reduced pipeline latency by 40%',
-          ],
+          bullets: [],
         },
         {
           role: 'Software Engineering Intern',
           company: 'iTea',
           location: 'Alameda, CA',
           dates: 'Dec 2024 \u2013 Present',
-          bullets: [
-            'Built Next.js + AWS (Lambda/DynamoDB) scheduling engine, replacing a 10-hour manual workflow',
-            'Created Power BI dashboards syncing supply chain orders with demand\u2014cut perishable waste by 22%',
-            'Developed regression-based labor model predicting customer traffic with 90% accuracy',
-          ],
+          bullets: [],
         },
       ],
     },
@@ -73,29 +93,32 @@ export const useGarageStore = create((set) => ({
       ],
     },
     {
-      id: 'skills',
-      title: 'Skills',
-      type: 'skills',
-      categories: [
-        { label: 'Languages & Frameworks', items: ['Python', 'Java', 'C++', 'R', 'JavaScript', 'Next.js', 'Node.js', 'Django'] },
-        { label: 'Data & Cloud', items: ['SQL', 'PostgreSQL', 'Snowflake', 'AWS Lambda', 'AWS S3', 'MongoDB', 'Redis', 'Git'] },
-        { label: 'Analytics & Viz', items: ['Tableau', 'Power BI', 'Looker Studio', 'GA4', 'A/B Testing'] },
-        { label: 'Math & ML', items: ['Numerical Analysis', 'Statistical Inference', 'Linear Algebra', 'Scikit-Learn', 'PyTorch'] },
+      id: 'funfacts',
+      title: 'Fun Facts',
+      type: 'funfacts',
+      facts: [
+        { icon: 'car', title: "I love cars", text: "From weekend wrenching to car shows—I've spent time at a mechanic shop and even had my work featured in an award-winning article. There's something satisfying about turning wrenches and bringing engines back to life.", articleUrl: "https://www.speedhunters.com/2023/02/is-it-a-show-car-is-it-a-race-car-this-m2-is-both-more/", articleTitle: "Is It A Show Car? Is It A Race Car? This M2 Is Both & More", articleImage: "https://www.speedhunters.com/wp-content/uploads/2023/02/022323-Speedhunters-M2-John-Lau-1-1200x800.jpg" },
+        { icon: 'sports', title: "I love sports", text: "Go Raiders! I'm a die-hard Oakland fan and never miss a chance to catch a game or debate the latest plays." },
+        { icon: 'volleyball', title: "I love volleyball", text: "2x IM champion at UC Berkeley for volleyball. When I'm not coding, you'll find me on the court." },
       ],
     },
     {
       id: 'contact',
-      title: "Let\u2019s Connect",
+      title: "Let's Connect",
       type: 'contact',
-      email: 'wilwu2168@berkeley.edu',
+      name: 'Wilson Wu',
+      role: 'UC Berkeley Student',
+      description: 'Experience in AWS, Azure, Docker, Java Spring Boot, Node, and React.',
+      location: 'Oakland, CA | UC Berkeley',
+      email: 'wilsonwu022004@gmail.com',
+      emailDisplay: 'wilsonwu022004 [at] gmail [dot] com',
       linkedin: 'linkedin.com/in/wilsunah',
-      location: 'Oakland, CA',
-      note: "I\u2019m actively looking for Software Engineering and Data Science roles. Always happy to chat\u2014reach out anytime.",
+      ctaMessage: "I'm always up for a chat or a coffee! Feel free to reach out.",
     },
   ],
   setGear: (gear) => set({ currentGear: gear }),
   cycleGear: () => set((state) => ({ 
-    currentGear: state.currentGear >= 5 ? 1 : state.currentGear + 1 
+    currentGear: state.currentGear >= 4 ? 1 : state.currentGear + 1 
   })),
   isDriving: false,
   setIsDriving: (val) => set({ isDriving: val }),
@@ -107,10 +130,8 @@ export const useGarageStore = create((set) => ({
   setWorkbenchActive: (active) => set({ workbenchActive: active }),
   insideCar: false,
   setInsideCar: (val) => set({ insideCar: val }),
-  enteringCar: false,
-  setEnteringCar: (val) => set({ enteringCar: val }),
-  _enterCar: null,
-  _setEnterCar: (fn) => set({ _enterCar: fn }),
+  _startDriving: null,
+  _setStartDriving: (fn) => set({ _startDriving: fn }),
   _goToWorkbench: null,
   _setGoToWorkbench: (fn) => set({ _goToWorkbench: fn }),
 }))
