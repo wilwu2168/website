@@ -210,8 +210,15 @@ export function Car({ cameraRef, controlsRef }) {
   }, [handleCarClick])
 
   useEffect(() => {
-    if (!isDriving && groupRef.current) {
-      groupRef.current.position.z = -1.5
+    if (!isDriving) {
+      if (drivingTween.current) {
+        drivingTween.current.kill()
+        drivingTween.current = null
+      }
+      isAnimating.current = false
+      if (groupRef.current) {
+        groupRef.current.position.z = -1.5
+      }
     }
   }, [isDriving])
 

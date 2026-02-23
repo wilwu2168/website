@@ -1,3 +1,4 @@
+import React from 'react'
 import { Canvas } from '@react-three/fiber'
 import { OrbitControls, PerspectiveCamera } from '@react-three/drei'
 import { Suspense, useRef, useEffect, useState, useCallback } from 'react'
@@ -8,6 +9,75 @@ import { PortfolioPage } from './components/PortfolioPage'
 import { NavBar } from './components/NavBar'
 import { useGarageStore } from './store'
 
+function hasWebGLSupport() {
+  try {
+    const canvas = document.createElement('canvas')
+    const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl')
+    return gl instanceof WebGLRenderingContext
+  } catch {
+    return false
+  }
+}
+
+class WebGLErrorBoundary extends React.Component {
+  state = { hasError: false }
+
+  static getDerivedStateFromError() {
+    return { hasError: true }
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return this.props.fallback
+    }
+    return this.props.children
+  }
+}
+
+function WebGLFallback() {
+  const setViewMode = useGarageStore((s) => s.setViewMode)
+  return (
+    <div style={{
+      width: '100vw',
+      height: '100vh',
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: 'center',
+      justifyContent: 'center',
+      background: 'linear-gradient(180deg, #1a1a1a 0%, #2d2d2d 100%)',
+      color: '#fff',
+      fontFamily: 'system-ui, -apple-system, sans-serif',
+      padding: '24px',
+      textAlign: 'center',
+    }}>
+      <h1 style={{ margin: '0 0 12px', fontSize: '1.5rem', fontWeight: 600 }}>
+        WebGL Not Available
+      </h1>
+      <p style={{ margin: '0 0 24px', color: 'rgba(255,255,255,0.7)', fontSize: '0.95rem', maxWidth: '400px' }}>
+        This 3D garage requires WebGL. Please open this site in a regular browser (Chrome, Firefox, Safari, or Edge) with hardware acceleration enabled.
+      </p>
+      <button
+        onClick={() => setViewMode('portfolio')}
+        style={{
+          padding: '12px 24px',
+          borderRadius: '10px',
+          border: '1px solid rgba(255,165,0,0.3)',
+          background: 'rgba(255,165,0,0.15)',
+          color: '#ffa500',
+          fontSize: '0.9rem',
+          fontWeight: 500,
+          cursor: 'pointer',
+          transition: 'background 0.2s',
+        }}
+        onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(255,165,0,0.28)' }}
+        onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(255,165,0,0.15)' }}
+      >
+        View Portfolio
+      </button>
+    </div>
+  )
+}
+
 function App() {
   const cameraRef = useRef()
   const controlsRef = useRef()
@@ -15,6 +85,7 @@ function App() {
   const setInsideCar = useGarageStore((s) => s.setInsideCar)
   const setWorkbenchActive = useGarageStore((s) => s.setWorkbenchActive)
   const workbenchActive = useGarageStore((s) => s.workbenchActive)
+  const showIntro = useGarageStore((s) => s.showIntro)
   const setIsDriving = useGarageStore((s) => s.setIsDriving)
   const viewMode = useGarageStore((s) => s.viewMode)
   const setViewMode = useGarageStore((s) => s.setViewMode)
@@ -42,6 +113,7 @@ function App() {
     const tl = gsap.timeline({
       onComplete: () => {
         if (ctrl) ctrl.enabled = true
+        showIntro()
       }
     })
 
@@ -58,7 +130,7 @@ function App() {
         onUpdate: () => ctrl.update()
       }, 0)
     }
-  }, [setInsideCar, setIsDriving])
+  }, [setInsideCar, setIsDriving, showIntro])
 
   useEffect(() => {
     useGarageStore.getState()._setExitCar(exitCar)
@@ -70,6 +142,7 @@ function App() {
       if (e.key === 'Escape') {
         if (workbenchActive) {
           setWorkbenchActive(false)
+          showIntro()
         } else if (insideCar) {
           exitCar()
         }
@@ -77,7 +150,7 @@ function App() {
     }
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [insideCar, workbenchActive, exitCar, setWorkbenchActive])
+  }, [insideCar, workbenchActive, exitCar, setWorkbenchActive, showIntro])
 
   useEffect(() => {
     if (viewMode !== 'intro' && viewMode !== '3d') return
@@ -128,20 +201,28 @@ function App() {
     )
   }
 
+  if (!hasWebGLSupport()) {
+    return <WebGLFallback />
+  }
+
   return (
     <div style={{ width: '100vw', height: '100vh' }}>
-      <Canvas
-        shadows
-        dpr={[1, 1.5]}
-        gl={{
-          antialias: true,
-          toneMapping: 3,
-          powerPreference: 'high-performance',
-          stencil: false,
-          depth: true,
-        }}
-        performance={{ min: 0.5 }}
+      <WebGLErrorBoundary
+        fallback={<WebGLFallback />}
       >
+        <>
+        <Canvas
+          shadows
+          dpr={[1, 1.5]}
+          gl={{
+            antialias: true,
+            toneMapping: 3,
+            powerPreference: 'high-performance',
+            stencil: false,
+            depth: true,
+          }}
+          performance={{ min: 0.5 }}
+        >
         <PerspectiveCamera
           ref={cameraRef}
           makeDefault
@@ -176,7 +257,6 @@ function App() {
           />
         </EffectComposer>
       </Canvas>
-      
       {viewMode === 'intro' && <IntroOverlay />}
       {viewMode === '3d' && <NavBar />}
       {viewMode === '3d' && !insideCar && !workbenchActive && (
@@ -185,6 +265,8 @@ function App() {
       <GearDisplay />
       <WorkbenchOverlay />
       {insideCar && <CarExitOverlay onExit={exitCar} />}
+        </>
+      </WebGLErrorBoundary>
     </div>
   )
 }
@@ -446,6 +528,7 @@ function GearDisplay() {
 function WorkbenchOverlay() {
   const workbenchActive = useGarageStore((s) => s.workbenchActive)
   const setWorkbenchActive = useGarageStore((s) => s.setWorkbenchActive)
+  const showIntro = useGarageStore((s) => s.showIntro)
   const portfolioSections = useGarageStore((s) => s.portfolioSections)
   const [visible, setVisible] = useState(false)
 
@@ -580,7 +663,7 @@ function WorkbenchOverlay() {
 
   return (
     <div
-      onClick={() => setWorkbenchActive(false)}
+      onClick={() => { setWorkbenchActive(false); showIntro() }}
       style={{
         position: 'absolute',
         inset: 0,
@@ -622,7 +705,7 @@ function WorkbenchOverlay() {
             </p>
           </div>
           <button
-            onClick={() => setWorkbenchActive(false)}
+            onClick={() => { setWorkbenchActive(false); showIntro() }}
             style={{
               background: 'rgba(255,255,255,0.06)',
               border: 'none',

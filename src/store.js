@@ -8,6 +8,7 @@ export const useGarageStore = create((set) => ({
   },
   introVisible: true,
   hideIntro: () => set({ introVisible: false, viewMode: '3d' }),
+  showIntro: () => set({ introVisible: true, viewMode: 'intro' }),
   currentGear: 0,
   gearContent: {
     1: { title: "About Me", content: "UC Berkeley B.A. in Data Science & Applied Mathematics (2022\u20132026). Building at the intersection of machine learning, full-stack engineering, and mathematical modeling." },
